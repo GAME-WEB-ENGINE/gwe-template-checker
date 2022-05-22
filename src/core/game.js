@@ -103,7 +103,6 @@ class Game {
       this.operationNewTurn();
       return;
     }
-
   }
 }
 
