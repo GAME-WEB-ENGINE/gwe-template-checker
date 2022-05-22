@@ -98,11 +98,9 @@ class Game {
       this.operationStartChaining(coordTo, chainablePoints);
       return;
     }
-    if (chainablePoints.length == 0 && this.chaining) {
-      this.operationStopChaining();
-      this.operationNewTurn();
-      return;
-    }
+
+    this.operationStopChaining();
+    this.operationNewTurn();
   }
 }
 
