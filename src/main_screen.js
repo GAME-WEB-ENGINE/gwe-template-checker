@@ -9,6 +9,7 @@ class MainScreen extends GWE.Screen {
     this.game = null;
     this.uiTitle = null;
     this.uiBoard = null;
+    this.chaining = false;
   }
 
   update() {
@@ -28,6 +29,7 @@ class MainScreen extends GWE.Screen {
 
     GWE.eventManager.subscribe(this.game, 'E_NEW_TURN', this, this.handleGameNewTurn);
     GWE.eventManager.subscribe(this.game, 'E_START_CHAINING', this, this.handleGameStartChaining);
+    GWE.eventManager.subscribe(this.game, 'E_STOP_CHAINING', this, this.handleGameStopChaining);
     GWE.eventManager.subscribe(this.uiBoard, 'E_TILE_CLICKED', this, this.handleUIBoardTileClicked);
   }
 
@@ -37,6 +39,7 @@ class MainScreen extends GWE.Screen {
   }
 
   handleGameStartChaining(data) {
+    this.chaining = true;
     this.uiBoard.unselectTile();
     this.uiBoard.unfocusTiles();
     this.uiBoard.selectTile(data.coord);
@@ -46,8 +49,12 @@ class MainScreen extends GWE.Screen {
     }
   }
 
+  handleGameStopChaining() {
+    this.chaining = false;
+  }
+
   handleUIBoardTileClicked(data) {
-    if (this.game.isChaining()) { 
+    if (this.chaining) { 
       this.handleUIChainingClick(data.coord);
     }
     else {

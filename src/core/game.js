@@ -7,7 +7,6 @@ class Game {
   constructor() {
     this.board = new Board();
     this.currentPlayer = COLOR.BLACK;
-    this.chaining = false;
   }
 
   getBoard() {
@@ -37,12 +36,10 @@ class Game {
   }
 
   operationStartChaining(coordFrom, points) {
-    this.chaining = true;
     GWE.eventManager.emit(this, 'E_START_CHAINING', { coord: coordFrom, points: points });
   }
 
   operationStopChaining() {
-    this.chaining = false;
     GWE.eventManager.emit(this, 'E_STOP_CHAINING');
   }
 
@@ -96,11 +93,11 @@ class Game {
     let chainablePoints = this.board.getPossiblePoints(coordTo, true);
     if (chainablePoints.length > 0) {
       this.operationStartChaining(coordTo, chainablePoints);
-      return;
     }
-
-    this.operationStopChaining();
-    this.operationNewTurn();
+    else {
+      this.operationStopChaining();
+      this.operationNewTurn();
+    }
   }
 }
 
