@@ -7,6 +7,8 @@ class Game {
   constructor() {
     this.board = new Board();
     this.currentPlayer = COLOR.BLACK;
+    this.playableCoords = [];
+    this.mustCapture = true;
   }
 
   getBoard() {
@@ -17,8 +19,42 @@ class Game {
     return this.currentPlayer;
   }
 
-  isChaining() {
-    return this.chaining;
+  isPlayableCoord(coord) {
+    return this.playableCoords.find(p => p[0] == coord[0] && p[1] == coord[1]);
+  }
+
+  getPlayableCoords() {
+    let mustCaptureCoords = [];
+    let otherCoords = [];
+
+    for (let y = 0; y < this.board.getRows(); y++) {
+      for (let x = 0; x < this.board.getCols(); x++) {
+        let tile = this.board.getTile([x, y]);
+        let piece = tile.getPiece();
+
+        if (!piece) {
+          continue;
+        }
+
+        if (piece.getColor() != this.currentPlayer) {
+          continue;
+        }
+
+        let points = this.board.getPossiblePoints([x, y]);
+        if (points.length == 0) {
+          continue;
+        }
+
+        if (points.find(p => p.mustCapture)) {
+          mustCaptureCoords.push([x, y]);
+        }
+        else {
+          otherCoords.push([x, y]);
+        }
+      }
+    }
+
+    return this.mustCapture && mustCaptureCoords.length > 0 ? mustCaptureCoords : [...otherCoords, ...mustCaptureCoords];
   }
 
   operationNewTurn() {

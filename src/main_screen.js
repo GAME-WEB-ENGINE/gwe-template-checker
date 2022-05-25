@@ -65,23 +65,25 @@ class MainScreen extends GWE.Screen {
 
   handleUIChainingClick(coord) {
     let uiTile = this.uiBoard.getTile(coord);
-    if (uiTile.isFocused()) {
-      this.game.operationMove(this.uiBoard.getSelectedTileCoord(), coord);
-      this.uiBoard.unselectTile();
-      this.uiBoard.unfocusTiles();
+    if (!uiTile.isFocused()) {
+      return;
     }
+
+    this.game.operationMove(this.uiBoard.getSelectedTileCoord(), coord);
+    this.uiBoard.unselectTile();
+    this.uiBoard.unfocusTiles();
   }
 
   handleUIFirstClick(coord) {
-    let board = this.game.getBoard();
-    let tile = board.getTile(coord);
-    let piece = tile.getPiece();
+    let playableCoords = this.game.getPlayableCoords();
+    if (!playableCoords.find(c => c[0] == coord[0] && c[1] == coord[1])) {
+      return;
+    }
 
-    if (piece && piece.getColor() == this.game.getCurrentPlayer()) {
-      this.uiBoard.selectTile(coord);
-      for (let point of board.getPossiblePoints(coord)) {
-        this.uiBoard.focusTile([point.x, point.y]);
-      }
+    let board = this.game.getBoard();
+    this.uiBoard.selectTile(coord);
+    for (let point of board.getPossiblePoints(coord)) {
+      this.uiBoard.focusTile([point.x, point.y]);
     }
   }
 
