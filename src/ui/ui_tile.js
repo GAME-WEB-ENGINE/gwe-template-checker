@@ -14,20 +14,26 @@ class UITile extends GWE.UIWidget {
       className: 'UITile',
       template: `
       <div class="UITile-bg js-bg"></div>
-      <div class="UITile-piece js-piece"></div>`
+      <div class="UITile-piece js-piece"></div>
+      <div class="UITile-actions js-actions"></div>`
     });
 
     this.tile = null;
+    this.selectable = false;
     this.uiPiece = new UIPiece();
 
+    this.node.classList.add(options.color == 'white' ? 'UITile--white' : 'UITile--black'); // à revoir
     this.node.querySelector('.js-piece').replaceWith(this.uiPiece.node);
-    this.node.classList.add(options.color == 'white' ? 'UITile--white' : 'UITile--black');
+
+    this.node.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.handleClicked()
+    });
   }
 
   update(ts) {
     if (this.tile) {
-      let bg = ELEMENT_TO_BG[this.tile.getElement()];
-      this.node.querySelector('.js-bg').style.backgroundImage = bg ? `url(${bg})` : '';
+      this.node.querySelector('.js-bg').style.backgroundImage = `url(${ELEMENT_TO_BG[this.tile.getElement()] ?? ''})`;
       this.uiPiece.setPiece(this.tile.getPiece());
     }
     else {
@@ -44,6 +50,43 @@ class UITile extends GWE.UIWidget {
 
   setTile(tile) {
     this.tile = tile ? tile : null;
+  }
+
+  isSelectable() {
+    return this.selectable;
+  }
+
+  setSelectable(selectable) {
+    this.node.classList.toggle('u-selectable', selectable);
+    this.selectable = selectable;
+  }
+
+  addAction(name) {
+    let action = document.createElement('div');
+    action.className = 'UITile-actions-item';
+    action.textContent = name;
+    action.id = name;
+    this.node.querySelector('.js-actions').appendChild(action);
+
+    action.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.handleActionClicked(name)
+    });
+  }
+
+  clearActions() {
+    let actionsNode = this.node.querySelector('.js-actions');
+    while (actionsNode.firstChild) {
+      actionsNode.removeChild(actionsNode.firstChild);
+    }
+  }
+
+  handleClicked() {
+    GWE.eventManager.emit(this, 'E_CLICKED');
+  }
+
+  handleActionClicked(action) {
+    GWE.eventManager.emit(this, 'E_ACTION', { action: action });
   }
 }
 

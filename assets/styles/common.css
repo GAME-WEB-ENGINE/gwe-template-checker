@@ -29,7 +29,7 @@
 .UITile.u-focused {
   background-color: red;
 }
-.UITile.u-selected {
+.UITile.u-selectable {
   background-color: #00ffff;
 }
 .UITile-bg {
@@ -39,6 +39,17 @@
   bottom: 0;
   left: 0;
   background-size: cover;
+}
+.UITile-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+.UITile-actions-item {
+  display: block;
+  background-color:red;
 }
 
 /*---------------------------------------------------------------------------------------------*/

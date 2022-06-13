@@ -20,8 +20,7 @@ class UIPiece extends GWE.UIWidget {
 
   update() {
     if (this.piece) {
-      let bg = PIECE_TO_BG[this.piece.getColor() + '_' + this.piece.getType()];
-      this.node.querySelector('.js-bg').style.backgroundImage = `url(${bg})`;
+      this.node.querySelector('.js-bg').style.backgroundImage = `url(${PIECE_TO_BG[this.piece.getColor() + '_' + this.piece.getType()]})`;
     }
     else {
       this.node.querySelector('.js-bg').style.backgroundImage = '';

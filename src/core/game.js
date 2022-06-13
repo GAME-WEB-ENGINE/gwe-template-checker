@@ -1,14 +1,13 @@
 let { GWE } = require('gwe');
 let { COLOR, PIECE_TYPE } = require('./enums');
-let { CREATE_QUEEN } = require('./pieces_store');
+let { Queen } = require('./piece');
 let { Board } = require('./board');
+let { PowerupFactory } = require('./powerup');
 
 class Game {
   constructor() {
     this.board = new Board();
     this.currentPlayer = COLOR.BLACK;
-    this.playableCoords = [];
-    this.mustCapture = true;
   }
 
   getBoard() {
@@ -19,64 +18,50 @@ class Game {
     return this.currentPlayer;
   }
 
-  isPlayableCoord(coord) {
-    return this.playableCoords.find(p => p[0] == coord[0] && p[1] == coord[1]);
+  startup() {
+    this.operationNewTurn();
   }
 
-  getPlayableCoords() {
-    let mustCaptureCoords = [];
-    let otherCoords = [];
-
-    for (let y = 0; y < this.board.getRows(); y++) {
-      for (let x = 0; x < this.board.getCols(); x++) {
-        let tile = this.board.getTile([x, y]);
-        let piece = tile.getPiece();
-
-        if (!piece) {
-          continue;
-        }
-
-        if (piece.getColor() != this.currentPlayer) {
-          continue;
-        }
-
-        let points = this.board.getPossiblePoints([x, y]);
-        if (points.length == 0) {
-          continue;
-        }
-
-        if (points.find(p => p.mustCapture)) {
-          mustCaptureCoords.push([x, y]);
-        }
-        else {
-          otherCoords.push([x, y]);
-        }
-      }
-    }
-
-    return this.mustCapture && mustCaptureCoords.length > 0 ? mustCaptureCoords : [...otherCoords, ...mustCaptureCoords];
-  }
-
-  operationNewTurn() {
+  async operationNewTurn() {
     let y = this.currentPlayer == COLOR.BLACK ? this.board.getRows() - 1 : 0;
     for (let x = 0; x < this.board.getCols(); x++) {
       let tile = this.board.getTile([x, y]);
       let piece = tile.getPiece();
       if (piece && piece.getColor() == this.currentPlayer && piece.getType() == PIECE_TYPE.PAWN) {
-        tile.setPiece(CREATE_QUEEN(piece.getColor()));
+        tile.setPiece(new Queen(piece.getColor()));
       }
     }
 
     this.currentPlayer = this.currentPlayer == COLOR.BLACK ? COLOR.WHITE : COLOR.BLACK;
-    GWE.eventManager.emit(this, 'E_NEW_TURN');
+    await this.operationRequestTileAction();
   }
 
-  operationStartChaining(coordFrom, points) {
-    GWE.eventManager.emit(this, 'E_START_CHAINING', { coord: coordFrom, points: points });
+  async operationRequestTileAction() {
+    let response = {};
+    response.x = 0;
+    response.y = 0;
+    response.action = '';
+
+    await GWE.eventManager.emit(this, 'E_REQUEST_TILE_ACTION', {
+      response: response
+    });
+
+    return response;
   }
 
-  operationStopChaining() {
-    GWE.eventManager.emit(this, 'E_STOP_CHAINING');
+  async operationRequestTileLocation(required = false, predicateTile = () => true) {
+    let response = {};
+    response.x = 0;
+    response.y = 0;
+    response.canceled = false;
+
+    await GWE.eventManager.emit(this, 'E_REQUEST_TILE_LOCATION', {
+      required: required,
+      predicateTile: predicateTile,
+      response: response
+    });
+
+    return response;
   }
 
   operationKill(coord) {
@@ -84,21 +69,14 @@ class Game {
     tile.setPiece(null);
   }
 
-  operationReplace(coordFrom, coordTo) {
-    let tileFrom = this.board.getTile(coordFrom);
-    let tileTo = this.board.getTile(coordTo);
-    let piece = tileFrom.getPiece();
-    tileFrom.setPiece(null);
-    tileTo.setPiece(piece);
+  async operationPowerup(coord) {
+    let piece = this.board.getPiece(coord);
+    let powerup = PowerupFactory.create(this, piece.getPowerupId());
+    await powerup.onActive();
+    piece.setPowerupId('');
   }
 
-  operationPromoteToQueen(coord) {
-    let tile = this.board.getTile(coord);
-    let piece = tile.getPiece();
-    tile.setPiece(CREATE_QUEEN(piece.color));
-  }
-
-  operationMove(coordFrom, coordTo) {
+  async operationMove(coordFrom, coordTo) {
     let tileFrom = this.board.getTile(coordFrom);
     let tileTo = this.board.getTile(coordTo);
     let piece = tileFrom.getPiece();
@@ -121,18 +99,11 @@ class Game {
       }
     }
 
-    if (!move.isChainable()) {
-      this.operationNewTurn();
+    let chainablePoints = this.board.findPossiblePoints(coordTo, true);
+    if (move.isChainable() && chainablePoints.length > 0) {
+      let response = await this.operationRequestTileLocation(true, (x, y) => chainablePoints.find(p => p.x == x && p.y == y));
+      await this.operationMove(coordTo, [response.x, response.y]);
       return;
-    }
-
-    let chainablePoints = this.board.getPossiblePoints(coordTo, true);
-    if (chainablePoints.length > 0) {
-      this.operationStartChaining(coordTo, chainablePoints);
-    }
-    else {
-      this.operationStopChaining();
-      this.operationNewTurn();
     }
   }
 }

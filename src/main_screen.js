@@ -1,15 +1,16 @@
 let { GWE } = require('gwe');
 let { COLOR } = require('./core/enums');
 let { Game } = require('./core/game');
+let { CommandFactory } = require('./core/game_commands');
 let { UIBoard } = require('./ui/ui_board');
 
 class MainScreen extends GWE.Screen {
   constructor(app) {
     super(app);
     this.game = null;
+    this.board = null;
     this.uiTitle = null;
     this.uiBoard = null;
-    this.chaining = false;
   }
 
   update() {
@@ -18,84 +19,78 @@ class MainScreen extends GWE.Screen {
 
   onEnter() {
     this.game = new Game();
+    this.board = this.game.getBoard();
 
     this.uiTitle = document.createElement('div');
     GWE.uiManager.addNode(this.uiTitle, 'position:absolute; top: 10%; left: 50%; transform: translateX(-50%)');
 
     this.uiBoard = new UIBoard();
-    this.uiBoard.setBoard(this.game.getBoard());
+    this.uiBoard.setBoard(this.board);
     GWE.uiManager.addWidget(this.uiBoard, 'position: absolute;inset: 0px;top: 50%;left: 50%;width: 400px;height: 400px;transform: translate(-50%, -50%)');
     GWE.uiManager.focus(this.uiBoard);
 
-    GWE.eventManager.subscribe(this.game, 'E_NEW_TURN', this, this.handleGameNewTurn);
-    GWE.eventManager.subscribe(this.game, 'E_START_CHAINING', this, this.handleGameStartChaining);
-    GWE.eventManager.subscribe(this.game, 'E_STOP_CHAINING', this, this.handleGameStopChaining);
-    GWE.eventManager.subscribe(this.uiBoard, 'E_TILE_CLICKED', this, this.handleUIBoardTileClicked);
+    GWE.eventManager.subscribe(this.game, 'E_REQUEST_TILE_ACTION', this, this.handleGameRequestTileAction);
+    GWE.eventManager.subscribe(this.game, 'E_REQUEST_TILE_LOCATION', this, this.handleGameRequestTileLocation);
+
+    this.game.startup();
   }
 
-  handleGameNewTurn() {
-    this.uiBoard.unselectTile();
-    this.uiBoard.unfocusTiles();
+  handleGameRequestTileAction(data) {
+    return new Promise(resolve => {
+      GWE.eventManager.subscribe(this.uiBoard, 'E_TILE_CLICKED', this, (data) => {
+        this.uiBoard.clearActions();
+        let uiTile = this.uiBoard.getUITile(data.coord);
+        let moveCmd = CommandFactory.create('MOVE', this.game, data.coord);
+        if (moveCmd.isConditionCheck()) uiTile.addAction('MOVE');
+        let powerupCmd = CommandFactory.create('POWERUP', this.game, data.coord);
+        if (powerupCmd.isConditionCheck()) uiTile.addAction('POWERUP');
+      });
+
+      GWE.eventManager.subscribe(this.uiBoard, 'E_TILE_ACTION', this, async (data) => {
+        GWE.eventManager.unsubscribe(this.uiBoard, 'E_TILE_CLICKED', this);
+        GWE.eventManager.unsubscribe(this.uiBoard, 'E_TILE_ACTION', this);
+        let uiTile = this.uiBoard.getUITile(data.coord);
+        uiTile.clearActions();
+        let cmd = CommandFactory.create(data.action, this.game, data.coord);
+        cmd.exec().then(() => resolve());
+      });
+    });
   }
 
-  handleGameStartChaining(data) {
-    this.chaining = true;
-    this.uiBoard.unselectTile();
-    this.uiBoard.unfocusTiles();
-    this.uiBoard.selectTile(data.coord);
+  handleGameRequestTileLocation({ required, predicateTile, response }) {
+    return new Promise(resolve => {
+      for (let y = 0; y < this.board.getRows(); y++) {
+        for (let x = 0; x < this.board.getCols(); x++) {
+          if (predicateTile(x, y)) {
+            let uiTile = this.uiBoard.getUITile([x, y]);
+            uiTile.setSelectable(true);
+          }
+        }
+      }
 
-    for (let point of data.points) {
-      this.uiBoard.focusTile([point.x, point.y]);
-    }
-  }
+      if (!required) {
+        GWE.eventManager.subscribe(this.uiBoard, 'E_ECHAP_PRESSED', this, () => {
+          GWE.eventManager.unsubscribe(this.uiBoard, 'E_ECHAP_PRESSED', this);
+          GWE.eventManager.unsubscribe(this.uiBoard, 'E_TILE_CLICKED', this);
+          this.uiBoard.clearSelectable();
+          response.canceled = true;
+          resolve();
+        });
+      }
 
-  handleGameStopChaining() {
-    this.chaining = false;
-  }
-
-  handleUIBoardTileClicked(data) {
-    if (this.chaining) { 
-      this.handleUIChainingClick(data.coord);
-    }
-    else {
-      if (this.uiBoard.getSelectedTileCoord()) this.handleUISecondClick(data.coord);        
-      else this.handleUIFirstClick(data.coord);
-    }
-  }
-
-  handleUIChainingClick(coord) {
-    let uiTile = this.uiBoard.getTile(coord);
-    if (!uiTile.isFocused()) {
-      return;
-    }
-
-    this.game.operationMove(this.uiBoard.getSelectedTileCoord(), coord);
-    this.uiBoard.unselectTile();
-    this.uiBoard.unfocusTiles();
-  }
-
-  handleUIFirstClick(coord) {
-    let playableCoords = this.game.getPlayableCoords();
-    if (!playableCoords.find(c => c[0] == coord[0] && c[1] == coord[1])) {
-      return;
-    }
-
-    let board = this.game.getBoard();
-    this.uiBoard.selectTile(coord);
-    for (let point of board.getPossiblePoints(coord)) {
-      this.uiBoard.focusTile([point.x, point.y]);
-    }
-  }
-
-  handleUISecondClick(coord) {
-    let uiTile = this.uiBoard.getTile(coord);
-    if (uiTile.isFocused()) {
-      this.game.operationMove(this.uiBoard.getSelectedTileCoord(), coord);
-    }
-    else {
-      this.uiBoard.unselectTile();
-      this.uiBoard.unfocusTiles();
-    }
+      GWE.eventManager.subscribe(this.uiBoard, 'E_TILE_CLICKED', this, (data) => {
+        let uiTile = this.uiBoard.getUITile(data.coord);
+        if (uiTile.isSelectable()) {
+          GWE.eventManager.unsubscribe(this.uiBoard, 'E_ECHAP_PRESSED', this);
+          GWE.eventManager.unsubscribe(this.uiBoard, 'E_TILE_CLICKED', this);
+          this.uiBoard.clearSelectable();
+          response.canceled = false;
+          response.x = data.coord[0];
+          response.y = data.coord[1];
+          resolve();
+        }
+      });
+    });
   }
 }
 

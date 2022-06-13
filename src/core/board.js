@@ -1,5 +1,5 @@
 let { COLOR } = require('./enums');
-let { CREATE_PAWN } = require('./pieces_store');
+let { Pawn } = require('./piece');
 let { Tile } = require('./tile');
 
 class Board {
@@ -7,15 +7,16 @@ class Board {
     this.rows = 10;
     this.cols = 10;
     this.tiles = [];
+    this.mustCapture = true;
 
     for (let y = 0; y < this.rows; y++) {
       this.tiles[y] = [];
       for (let x = 0; x < this.cols; x++) {
         if (y < 4 && (x + y) % 2) {
-          this.tiles[y][x] = new Tile(CREATE_PAWN(COLOR.BLACK));
+          this.tiles[y][x] = new Tile(new Pawn(COLOR.BLACK));
         }
         else if (y > 5 && (x + y) % 2) {
-          this.tiles[y][x] = new Tile(CREATE_PAWN(COLOR.WHITE));
+          this.tiles[y][x] = new Tile(new Pawn(COLOR.WHITE));
         }
         else {
           this.tiles[y][x] = new Tile();
@@ -36,11 +37,15 @@ class Board {
     return this.tiles[coord[1]][coord[0]];
   }
 
+  getPiece(coord) {
+    return this.tiles[coord[1]][coord[0]].getPiece();
+  }
+
   isValidCoord(coord) {
     return coord[0] < this.cols && coord[0] >= 0 && coord[1] < this.rows && coord[1] >= 0;
   }
 
-  getPossiblePoints(coord, onlyChainable = false) {
+  findPossiblePoints(coord, onlyChainable = false) {
     let possiblePoints = [];
     let piece = this.tiles[coord[1]][coord[0]].getPiece();
 
@@ -81,15 +86,44 @@ class Board {
       }
     }
 
-    let mustCapture = possiblePoints.find(p => p.mustCapture);
-    let i = possiblePoints.length;
-    while (i--) {
-      if (mustCapture && !possiblePoints[i].mustCapture) {
-        possiblePoints.splice(i, 1);
+    let mustCapture = possiblePoints.find(p => p.mustCapture) ? true : false;
+    return possiblePoints.filter(p => mustCapture == p.mustCapture);
+  }
+
+  findMovableCoords(color) {
+    let mustCaptureCoords = [];
+    let otherCoords = [];
+
+    for (let y = 0; y < this.rows; y++) {
+      for (let x = 0; x < this.cols; x++) {
+        let piece = this.tiles[y][x].getPiece();
+        if (!piece) {
+          continue;
+        }
+
+        if (piece.getColor() != color) {
+          continue;
+        }
+
+        let points = this.findPossiblePoints([x, y]);
+        if (points.length == 0) {
+          continue;
+        }
+
+        if (points.find(p => p.mustCapture)) {
+          mustCaptureCoords.push([x, y]);
+        }
+        else {
+          otherCoords.push([x, y]);
+        }
       }
     }
 
-    return possiblePoints;
+    if (this.mustCapture && mustCaptureCoords.length > 0) {
+      return mustCaptureCoords;
+    }
+
+    return [...otherCoords, ...mustCaptureCoords];
   }
 }
 
