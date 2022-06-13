@@ -1,4 +1,4 @@
-let { COLOR, PIECE_TYPE, ELEMENT } = require('./enums');
+let { COLOR, PIECE_TYPE, ELEMENT, POWERUP_ID } = require('./enums');
 let { Move } = require('./move');
 
 let PATH_FORWARD_1XRIGHT = [[+1, +1]];
@@ -66,7 +66,7 @@ class Pawn extends Piece {
       color: color,
       type: PIECE_TYPE.PAWN,
       element: ELEMENT.DARK,
-      powerupId: 'KILL',
+      powerupId: POWERUP_ID.KILL,
       moves: [
         new Move({ path: color == COLOR.BLACK ? PATH_FORWARD_1XRIGHT : PATH_BACKWARD_1XRIGHT, numCapture: 0, mustCapture: false, chainable: false }),
         new Move({ path: color == COLOR.BLACK ? PATH_FORWARD_1XLEFT : PATH_BACKWARD_1XLEFT, numCapture: 0, mustCapture: false, chainable: false }),
@@ -85,7 +85,7 @@ class Queen extends Piece {
       color: color,
       type: PIECE_TYPE.QUEEN,
       element: ELEMENT.DARK,
-      powerupId: 'DOUBLE_MOVE',
+      powerupId: POWERUP_ID.DOUBLE_MOVE,
       moves: [
         new Move({ path: PATH_DIAG_FORWARD_RIGHT, numCapture: 0, mustCapture: false, chainable: false }),
         new Move({ path: PATH_DIAG_FORWARD_LEFT, numCapture: 0, mustCapture: false, chainable: false }),

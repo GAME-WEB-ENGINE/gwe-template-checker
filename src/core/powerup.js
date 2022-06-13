@@ -1,11 +1,13 @@
+let { POWERUP_ID } = require('./enums');
+
 class Powerup {
-  constructor(game, name = '') {
+  constructor(game, id = '') {
     this.game = game;
-    this.name = name;
+    this.id = id;
   }
 
-  getName() {
-    return this.name;
+  getId() {
+    return this.id;
   }
 
   async onActive() {
@@ -15,7 +17,7 @@ class Powerup {
 
 class DoubleMovePowerup extends Powerup {
   constructor(game) {
-    super(game, 'Double move');
+    super(game, POWERUP_ID.DOUBLE_MOVE);
     this.board = this.game.getBoard();
   }
 
@@ -37,7 +39,7 @@ class DoubleMovePowerup extends Powerup {
 
 class KillPowerup extends Powerup {
   constructor(game) {
-    super(game, 'Kill');
+    super(game, POWERUP_ID.KILL);
     this.board = this.game.getBoard();
   }
 
@@ -53,11 +55,11 @@ class KillPowerup extends Powerup {
 }
 
 class PowerupFactory {
-  static create(game, name) {
-    if (name == 'DOUBLE_MOVE') {
+  static create(game, id) {
+    if (id == POWERUP_ID.DOUBLE_MOVE) {
       return new DoubleMovePowerup(game);
     }
-    else if (name == 'KILL') {
+    else if (id == POWERUP_ID.KILL) {
       return new KillPowerup(game);
     }
   }
