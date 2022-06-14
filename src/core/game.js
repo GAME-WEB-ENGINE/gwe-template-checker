@@ -76,7 +76,7 @@ class Game {
     piece.setPowerupId('');
   }
 
-  async operationMove(coordFrom, coordTo) {
+  async operationMove(coordFrom, coordTo, encounterPieces = []) {
     let tileFrom = this.board.getTile(coordFrom);
     let tileTo = this.board.getTile(coordTo);
     let piece = tileFrom.getPiece();
@@ -94,15 +94,33 @@ class Game {
 
       let encounterTile = this.board.getTile(coord);
       let encounterPiece = encounterTile.getPiece();
+
       if (encounterPiece && encounterPiece.getColor() != piece.getColor()) {
-        encounterTile.setPiece(null);
+        encounterTile.setPiece(null); // à supprimer au profil d'une attaque corps à corps.
+        encounterPieces.push(encounterPiece);
       }
     }
 
     let chainablePoints = this.board.findPossiblePoints(coordTo, true);
     if (move.isChainable() && chainablePoints.length > 0) {
-      let response = await this.operationRequestTileLocation(true, (x, y) => chainablePoints.find(p => p.x == x && p.y == y));
-      await this.operationMove(coordTo, [response.x, response.y]);
+      let response = await this.operationRequestTileLocation(true, (x, y) => {
+        if (!chainablePoints.find(p => p.x == x && p.y == y)) {
+          return false;
+        }
+
+        // à ajouter dans le cas d'une attaque corps à corps.
+        // let move = pieceMoves.find(m => m.hasVector(GWE.Utils.VEC2_SUBSTRACT([x, y], coordTo)));
+        // for (let vector of move.getPath()) {
+        //   let encounterPiece = this.board.getPiece(GWE.Utils.VEC2_ADD(coordTo, vector));
+        //   if (encounterPiece && encounterPieces.indexOf(encounterPiece) != -1) {
+        //     return false;
+        //   }
+        // }
+
+        return true;
+      });
+
+      await this.operationMove(coordTo, [response.x, response.y], encounterPieces);
       return;
     }
   }
